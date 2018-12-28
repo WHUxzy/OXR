@@ -1,0 +1,105 @@
+hello world;
+#include"stdafx.h"
+# include "cv.h"
+# include "highgui.h"
+# include <iostream>
+using namespace std;
+using namespace cv;
+
+int main()
+{
+	IplImage *mode = cvLoadImage("t1.jpg", 1);
+	IplImage *test = cvLoadImage("t7.jpg", 1);
+	IplImage* bw_mode = cvCreateImage(cvGetSize(mode), mode->depth, 1);
+	IplImage* bw_test = cvCreateImage(cvGetSize(test), mode->depth, 1);
+	IplImage* canny_mode = cvCreateImage(cvGetSize(mode), mode->depth, 1);
+	IplImage* canny_test = cvCreateImage(cvGetSize(test), mode->depth, 1);
+
+	CvMemStorage *mode_mems = cvCreateMemStorage();
+	CvSeq *mode_seqs;
+	CvMemStorage *test_mems = cvCreateMemStorage();
+	CvSeq *test_seqs;
+
+	cvCvtColor(mode, bw_mode, CV_RGB2GRAY);
+	cvCvtColor(test, bw_test, CV_RGB2GRAY);
+
+	//model contours
+	cvCanny(bw_mode, canny_mode, 50, 60);
+	cvFindContours(canny_mode, mode_mems,
+		&mode_seqs, sizeof(CvContour), CV_RETR_TREE);
+
+	//test contours
+	cvCanny(bw_test, canny_test, 50, 60);
+	cvFindContours(canny_test, test_mems,
+		&test_seqs, sizeof(CvContour), CV_RETR_TREE);
+
+	double matching = cvMatchShapes(test_seqs, mode_seqs, CV_CONTOURS_MATCH_I1);
+	cout << matching << endl;
+
+	system("pause");
+	//释放内存
+}
+
+#include <opencv.hpp>
+#include <highgui.hpp>
+#include <iostream>
+
+void main()
+{
+	cv::Mat src = cv::imread("s0.jpg", 0);//读入基准印章（灰度）
+	cv::Mat test = cv::imread("f4.jpg", 0);//读入待测印章
+
+	if (src.empty() | test.empty())
+	{
+		cout << "imput error";
+		return;
+	}//resize
+	Mat resrc, retest;
+	resize(src, resrc, Size(1600,1600), 0, 0, INTER_LINEAR);
+	resize(test, retest, Size(1600, 1600), 0, 0, INTER_LINEAR);
+
+	
+
+	//二值化
+	Mat ezsrc,eztest;
+	threshold(resrc, ezsrc, 0, 255, CV_THRESH_OTSU);
+	threshold(retest, eztest, 0, 255, CV_THRESH_OTSU);
+	imshow("ezsrc", ezsrc);
+	imshow("eztest", eztest);
+
+	cv::Moments moment = cv::moments(ezsrc);
+	cv::Moments moment2 = cv::moments(eztest);
+	double hu[7] = { 0 };
+	double hu2[7] = { 0 };
+
+	// 计算Hu不变量
+	cv::HuMoments(moment, hu);
+	cv::HuMoments(moment2, hu2);
+
+	std::cout << "Hu不变矩为：\n";
+	for (int i = 0; i < 7; ++i)
+	{
+		std::cout << hu[i] << endl;
+	}
+	std::cout << "Hu2不变矩为：\n";
+	for (int i = 0; i < 7; ++i)
+	{
+		std::cout << hu2[i] << endl;
+	}
+
+	//定义欧式距离D
+	double dfi, sdfi = 0.0,sfi2=0.0;
+	for (int i = 0; i < 7; ++i)
+	{
+		//分子
+		dfi = abs( hu2[i] - hu[i])*abs(hu2[i] - hu[i]);
+		sdfi = sdfi + dfi;
+		//分母
+		sfi2 = sfi2 + hu[i]* hu[i];
+	}
+	double D;
+	D = sqrt(sdfi) / sqrt(sfi2);
+	cout << "欧式距离" << D;
+	cvWaitKey();
+	system("pause");
+}
